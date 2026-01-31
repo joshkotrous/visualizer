@@ -1,0 +1,285 @@
+"use client";
+
+import { useRef, useEffect } from "react";
+import { useTheme } from "../providers/themeProvider";
+import { useAudio } from "../../contexts/AudioContext";
+
+const vertexShader = `
+  attribute vec2 a_position;
+  void main() {
+    gl_Position = vec4(a_position, 0.0, 1.0);
+  }
+`;
+
+const fragmentShader = `
+  precision highp float;
+  
+  uniform float u_time;
+  uniform vec2 u_resolution;
+  uniform vec3 u_color;
+  uniform float u_aspect;
+  uniform float u_bass;
+  uniform float u_mid;
+  uniform float u_treble;
+  uniform float u_intensity;
+  
+  #define PI 3.14159265359
+  #define TAU 6.28318530718
+  
+  // Glow function
+  float glow(float d, float radius, float intensity) {
+    return radius / (d * d * intensity + radius);
+  }
+  
+  // Distance to line segment
+  float lineDist(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+  
+  // Get helix strand position at height y
+  vec2 getHelixPos(float y, float time, float phase, float radius) {
+    float angle = y * 4.0 + time + phase;
+    return vec2(cos(angle) * radius, y);
+  }
+  
+  void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution;
+    uv = uv * 2.0 - 1.0;
+    uv.x *= u_aspect;
+    
+    // Scale to fit
+    uv *= 1.1;
+    
+    // Audio processing
+    float bassSigned = (u_bass - 0.5) * 2.0;
+    float midSigned = (u_mid - 0.5) * 2.0;
+    float trebleSigned = (u_treble - 0.5) * 2.0;
+    
+    vec3 col = vec3(0.0);
+    float brightness = 0.0;
+    
+    // Helix parameters
+    float rotSpeed = 1.5 + midSigned * u_intensity * 0.8;
+    float time = u_time * rotSpeed;
+    
+    // Helix radius breathes with bass
+    float baseRadius = 0.25;
+    float helixRadius = baseRadius + bassSigned * u_intensity * 0.08;
+    
+    // Draw the two strands
+    float strandGlow = 0.0;
+    
+    // Sample points along the helix
+    const float NUM_SAMPLES = 40.0;
+    float yRange = 1.8;
+    
+    for (int ii = 0; ii < 40; ii++) {
+      float i = float(ii);
+      float t = i / NUM_SAMPLES;
+      float y = t * yRange * 2.0 - yRange;
+      float nextY = (i + 1.0) / NUM_SAMPLES * yRange * 2.0 - yRange;
+      
+      // Strand 1
+      float angle1 = y * 4.0 + time;
+      float nextAngle1 = nextY * 4.0 + time;
+      float x1 = cos(angle1) * helixRadius;
+      float nextX1 = cos(nextAngle1) * helixRadius;
+      float z1 = sin(angle1);
+      
+      // Strand 2 (opposite phase)
+      float angle2 = y * 4.0 + time + PI;
+      float nextAngle2 = nextY * 4.0 + time + PI;
+      float x2 = cos(angle2) * helixRadius;
+      float nextX2 = cos(nextAngle2) * helixRadius;
+      float z2 = sin(angle2);
+      
+      // Depth-based brightness (front strands brighter)
+      float depth1 = (z1 + 1.0) * 0.5;
+      float depth2 = (z2 + 1.0) * 0.5;
+      
+      // Line segments for strands
+      vec2 p1 = vec2(x1, y);
+      vec2 p1next = vec2(nextX1, nextY);
+      vec2 p2 = vec2(x2, y);
+      vec2 p2next = vec2(nextX2, nextY);
+      
+      // Distance to strand segments
+      float d1 = lineDist(uv, p1, p1next);
+      float d2 = lineDist(uv, p2, p2next);
+      
+      // Strand thickness varies with depth
+      float thickness1 = 0.025 + depth1 * 0.015;
+      float thickness2 = 0.025 + depth2 * 0.015;
+      
+      // Glow effect
+      float glow1 = smoothstep(thickness1, thickness1 * 0.3, d1) * (0.4 + depth1 * 0.6);
+      float glow2 = smoothstep(thickness2, thickness2 * 0.3, d2) * (0.4 + depth2 * 0.6);
+      
+      strandGlow += glow1 * 0.15;
+      strandGlow += glow2 * 0.15;
+      
+      // Base pair rungs (connecting the two strands)
+      if (mod(i, 4.0) < 1.0) {
+        // Only draw rung when both strands are roughly at same depth (side view)
+        float avgDepth = (depth1 + depth2) * 0.5;
+        float depthDiff = abs(z1 - z2);
+        
+        // Rung connects the two strands
+        float rungDist = lineDist(uv, p1, p2);
+        float rungThickness = 0.015 + avgDepth * 0.01;
+        float rungGlow = smoothstep(rungThickness, rungThickness * 0.2, rungDist);
+        rungGlow *= smoothstep(2.0, 0.5, depthDiff); // Fade when strands are at different depths
+        rungGlow *= (0.3 + avgDepth * 0.5);
+        
+        // Pulse effect on rungs with treble
+        float pulse = 1.0 + trebleSigned * u_intensity * 0.5 * sin(i * 0.5 + u_time * 5.0);
+        strandGlow += rungGlow * 0.3 * pulse;
+      }
+    }
+    
+    brightness = strandGlow;
+    
+    // Edge fade
+    float screenDist = max(abs(uv.x / u_aspect), abs(uv.y));
+    float edgeFade = smoothstep(1.0, 0.7, screenDist);
+    brightness *= edgeFade;
+    
+    // Vertical fade at top and bottom
+    float vertFade = smoothstep(1.0, 0.7, abs(uv.y));
+    brightness *= vertFade;
+    
+    col = u_color * brightness;
+    
+    // Transparent background
+    float alpha = smoothstep(0.01, 0.12, brightness);
+    
+    gl_FragColor = vec4(col, alpha);
+  }
+`;
+
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    return [
+      parseInt(result[1], 16) / 255,
+      parseInt(result[2], 16) / 255,
+      parseInt(result[3], 16) / 255,
+    ];
+  }
+  return [0.13, 0.77, 0.37];
+}
+
+export default function DNAHelix() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { theme } = useTheme() as { theme: { config: { shader?: string; primary: string } } | null };
+  const { audioMetrics, intensity } = useAudio();
+  const animationRef = useRef<number>();
+  const glRef = useRef<WebGLRenderingContext | null>(null);
+  const programRef = useRef<WebGLProgram | null>(null);
+  const startTimeRef = useRef<number>(Date.now());
+  const audioRef = useRef({ bass: 0, mid: 0, treble: 0, intensity: 1 });
+
+  useEffect(() => {
+    audioRef.current = { ...audioMetrics, intensity };
+  }, [audioMetrics, intensity]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const gl = canvas.getContext("webgl", { antialias: true, alpha: true });
+    if (!gl) return;
+    glRef.current = gl;
+
+    const vs = gl.createShader(gl.VERTEX_SHADER)!;
+    gl.shaderSource(vs, vertexShader);
+    gl.compileShader(vs);
+
+    const fs = gl.createShader(gl.FRAGMENT_SHADER)!;
+    gl.shaderSource(fs, fragmentShader);
+    gl.compileShader(fs);
+
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+      console.error("Fragment shader error:", gl.getShaderInfoLog(fs));
+    }
+
+    const program = gl.createProgram()!;
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    programRef.current = program;
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+      -1, -1, 1, -1, -1, 1,
+      -1, 1, 1, -1, 1, 1
+    ]), gl.STATIC_DRAW);
+
+    const posLoc = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const gl = glRef.current;
+    const program = programRef.current;
+    if (!canvas || !gl || !program) return;
+
+    const shaderColor = theme?.config?.shader || theme?.config?.primary || "#22c55e";
+    const [r, g, b] = hexToRgb(shaderColor);
+
+    const render = () => {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+        gl.viewport(0, 0, width, height);
+      }
+
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.useProgram(program);
+
+      const time = (Date.now() - startTimeRef.current) / 1000;
+      const { bass, mid, treble, intensity: audioIntensity } = audioRef.current;
+
+      gl.uniform1f(gl.getUniformLocation(program, "u_time"), time);
+      gl.uniform2f(gl.getUniformLocation(program, "u_resolution"), width, height);
+      gl.uniform3f(gl.getUniformLocation(program, "u_color"), r, g, b);
+      gl.uniform1f(gl.getUniformLocation(program, "u_aspect"), width / height);
+      gl.uniform1f(gl.getUniformLocation(program, "u_bass"), bass);
+      gl.uniform1f(gl.getUniformLocation(program, "u_mid"), mid);
+      gl.uniform1f(gl.getUniformLocation(program, "u_treble"), treble);
+      gl.uniform1f(gl.getUniformLocation(program, "u_intensity"), audioIntensity);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      animationRef.current = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
+  }, [theme]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="w-full h-full"
+      style={{ background: "transparent" }}
+    />
+  );
+}
