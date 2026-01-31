@@ -2,22 +2,25 @@
 
 import { useRef, useEffect, useState } from "react";
 import { useAudio } from "../contexts/AudioContext";
+import { useTheme } from "./providers/themeProvider";
 
 interface WaveformProps {
   height?: number;
-  lineColor?: string;
   backgroundColor?: string;
 }
 
 export function Waveform({
   height = 200,
-  lineColor = "#22c55e",
   backgroundColor = "#0a0a0a",
 }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
   const { waveformData, isListening } = useAudio();
+  const { theme } = useTheme() as { theme: { config: { shader?: string; primary: string } } | null };
+  
+  // Get shader color from theme
+  const lineColor = theme?.config?.shader || theme?.config?.primary || "#22c55e";
 
   // Handle resize
   useEffect(() => {

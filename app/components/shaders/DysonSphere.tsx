@@ -105,18 +105,25 @@ const fragmentShader = `
     float midSigned = (u_mid - 0.5) * 2.0;
     float trebleSigned = (u_treble - 0.5) * 2.0;
     
-    // Base sizes are constant - slightly smaller to leave room for expansion
-    float baseSphereRadius = 0.75;
-    float baseHexSize = 0.11;
-    float baseCoreRadius = 0.30;
-    
-    // Combine all frequencies for sphere breathing (mids and treble strong)
+    // Combine all frequencies (mids and treble strong)
     float combinedEffect = bassSigned * 0.4 + midSigned * 0.7 + trebleSigned * 0.8;
     
-    // Intensity controls how far from base we deviate (the range of movement)
-    float sphereRadius = baseSphereRadius + combinedEffect * u_intensity * 0.12;
-    float hexSize = baseHexSize + (bassSigned * 0.3 + midSigned * 0.5 + trebleSigned * 0.6) * u_intensity * 0.025;
-    float coreRadius = baseCoreRadius + (midSigned * 0.7 + trebleSigned * 0.5) * u_intensity * 0.06;
+    // Base sizes - hexagons start contracted, explode outward on peaks
+    float baseSphereRadius = 0.65;
+    float baseHexSize = 0.07;
+    float baseCoreRadius = 0.30;
+    
+    // Sphere radius: hexagons come together at base (-1), explode at peak (+1)
+    // Large multiplier for dramatic effect, clamped to stay positive
+    float sphereDelta = combinedEffect * u_intensity * 0.4;
+    float sphereRadius = max(0.3, baseSphereRadius + sphereDelta);
+    
+    // Hex size also grows/shrinks dramatically with audio, clamped to stay visible
+    float hexDelta = combinedEffect * u_intensity * 0.1;
+    float hexSize = max(0.03, baseHexSize + hexDelta);
+    
+    // Core pulses with mids and treble
+    float coreRadius = baseCoreRadius + (midSigned * 0.7 + trebleSigned * 0.5) * u_intensity * 0.1;
     
     // Core rotation (slower than outer shell)
     mat3 coreRot = rotateY(u_time * 0.15) * rotateX(u_time * 0.1);
