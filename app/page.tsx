@@ -23,41 +23,46 @@ export default function Home() {
           <AudioControls />
           <ThemeDropdown />
         </div>
-        <div className="p-4">
-          <div className="border flex justify-center items-center gap-8 overflow-visible">
-            <div className=" w-[280px] h-[200px] overflow-visible">
+        
+        <div className="flex-1 p-4 overflow-auto flex items-start justify-center">
+          {/* Main grid - 4 columns, responsive */}
+          <div className="grid grid-cols-4 w-full max-w-[1120px]">
+            {/* Row 1 */}
+            <div className="aspect-[7/5] border border-white/20 overflow-hidden">
               <DysonSphere />
             </div>
-            <div className="w-[280px] h-[200px] overflow-visible">
+            <div className="aspect-[7/5] border border-l-0 border-white/20 overflow-hidden">
               <ParticleCloud />
             </div>
-            <div className="w-[280px] h-[200px] overflow-visible">
+            <div className="aspect-[7/5] border border-l-0 border-white/20 overflow-hidden">
               <SineWaveGrid />
             </div>
-            <div className="w-[280px] h-[200px] overflow-visible">
+            <div className="aspect-[7/5] border border-l-0 border-white/20 overflow-hidden">
               <DNAHelix />
             </div>
-          </div>
-
-          <div className="border border-t-0 flex justify-center items-center gap-8 overflow-visible">
-            <div className="border-r w-[280px] h-[200px] overflow-visible">
+            
+            {/* Row 2 */}
+            <div className="aspect-[7/5] border border-t-0 border-white/20 overflow-hidden">
               <MagiCore />
             </div>
-            <div className=" border-r w-[280px] h-[200px] overflow-visible">
+            <div className="aspect-[7/5] border border-t-0 border-l-0 border-white/20 overflow-hidden">
               <RadarSweep />
             </div>
-            <div className="w-[280px] h-[200px] grid grid-cols-2 overflow-visible ">
-              <NeuralWeb />
-              <div className="grid border-l  grid-cols-1">
-                <div className="border-b overflow-visible">
+            {/* Neural Web cell with nested grid */}
+            <div className="aspect-[7/5] border border-t-0 border-l-0 border-white/20 overflow-hidden flex">
+              <div className="w-1/2 h-full border-r border-white/20 overflow-hidden">
+                <NeuralWeb />
+              </div>
+              <div className="w-1/2 h-full flex flex-col">
+                <div className="w-full h-1/2 border-b border-white/20 overflow-hidden">
                   <NeuralPulse />
                 </div>
-                <div className="overflow-visible">
+                <div className="w-full h-1/2 overflow-hidden">
                   <NeuralStorm />
                 </div>
               </div>
             </div>
-            <div className="border-l w-[280px] h-[200px] overflow-visible">
+            <div className="aspect-[7/5] border border-t-0 border-l-0 border-white/20 overflow-hidden">
               <AsciiAudioEffect />
             </div>
           </div>
