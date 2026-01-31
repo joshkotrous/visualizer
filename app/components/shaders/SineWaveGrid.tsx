@@ -84,17 +84,19 @@ const fragmentShader = `
         float z = waveOffset;
         
         // Multiple overlapping sine waves with variation per wave - smoother motion
-        // Audio-reactive: mid affects wave speed, treble adds high-freq shake
+        // Audio-reactive: mids and treble have strong effect on speed and shake
         float midSigned = (u_mid - 0.5) * 2.0;
         float trebleSigned = (u_treble - 0.5) * 2.0;
-        float speedBoost = 1.0 + midSigned * u_intensity * 1.0;
+        float speedBoost = 1.0 + (midSigned * 0.7 + trebleSigned * 0.8) * u_intensity * 1.2;
         float y = sin(x * 2.0 + u_time * (1.2 + float(w) * 0.3) * speedBoost + wavePhase) * waveHeight * 0.5;
         y += sin(x * 3.5 - u_time * (0.8 + float(w) * 0.2) * speedBoost + wavePhase * 2.0) * waveHeight * 0.25;
         y += sin(x * 1.2 + u_time * (1.5 - float(w) * 0.2) * speedBoost + wavePhase * 0.5) * waveHeight * 0.25;
         
-        // Add high-frequency shake - intensity controls the range
-        y += sin(x * 15.0 + u_time * 8.0) * trebleSigned * u_intensity * 0.1;
-        y += sin(x * 25.0 - u_time * 12.0) * trebleSigned * u_intensity * 0.06;
+        // Add high-frequency shake - mids add wobble, treble adds sharpness
+        y += sin(x * 10.0 + u_time * 6.0) * midSigned * u_intensity * 0.12;
+        y += sin(x * 15.0 + u_time * 8.0) * trebleSigned * u_intensity * 0.18;
+        y += sin(x * 25.0 - u_time * 12.0) * trebleSigned * u_intensity * 0.12;
+        y += sin(x * 40.0 + u_time * 15.0) * trebleSigned * u_intensity * 0.06;
         
         // Fade at edges
         float edgeFade = smoothstep(0.0, 0.2, t) * smoothstep(1.0, 0.8, t);

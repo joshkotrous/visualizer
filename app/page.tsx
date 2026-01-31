@@ -11,14 +11,26 @@ export default function Home() {
         <div className="flex shrink-0">
           <AudioControls />
         </div>
-        <div className="flex justify-center items-center gap-4 p-4">
-          <div className="w-[280px] h-[200px]">
+        <div className="flex justify-center items-center gap-8 p-4 overflow-visible">
+          <div className="w-[280px] h-[200px] overflow-visible">
             <DysonSphere />
           </div>
-          <div className="w-[280px] h-[200px]">
+          <div className="w-[280px] h-[200px] overflow-visible">
             <ParticleCloud />
           </div>
-          <div className="w-[280px] h-[200px]">
+          <div className="w-[280px] h-[200px] overflow-visible">
+            <SineWaveGrid />
+          </div>
+        </div>
+
+        <div className="flex justify-center items-center gap-8 p-4 overflow-visible">
+          <div className="w-[280px] h-[200px] overflow-visible">
+            <DysonSphere />
+          </div>
+          <div className="w-[280px] h-[200px] overflow-visible">
+            <ParticleCloud />
+          </div>
+          <div className="w-[280px] h-[200px] overflow-visible">
             <SineWaveGrid />
           </div>
         </div>

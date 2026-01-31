@@ -118,16 +118,16 @@ const vertexShader = `
     float trebleSigned = (u_treble - 0.5) * 2.0;
     
     float distFromCenter = length(pos);
-    float baseBreathe = sin(u_time * 0.3 + distFromCenter * 3.0) * 0.08;
+    float baseBreathe = sin(u_time * 0.3 + distFromCenter * 3.0) * 0.06;
     
-    // Intensity controls the RANGE of breathing movement
-    float audioBreathe = (bassSigned * 0.3 + midSigned * 0.15) * u_intensity;
+    // Intensity controls the RANGE of breathing movement - mids and treble strong
+    float audioBreathe = (bassSigned * 0.15 + midSigned * 0.2 + trebleSigned * 0.25) * u_intensity;
     float breathe = baseBreathe + audioBreathe;
     vec3 radialDir = normalize(pos + 0.001); // Normalize with small offset to avoid zero
     
-    // Base noise movement (constant) + audio-reactive extra scatter (intensity controls range)
-    float baseNoiseScale = 0.15;
-    float audioNoiseScale = trebleSigned * u_intensity * 0.15;
+    // Base noise movement (constant) + audio-reactive scatter (mids and treble)
+    float baseNoiseScale = 0.12;
+    float audioNoiseScale = (midSigned * 0.12 + trebleSigned * 0.18) * u_intensity;
     float totalNoiseScale = baseNoiseScale + audioNoiseScale;
     
     pos.x += (noise1 + detailNoise1) * totalNoiseScale;
@@ -146,6 +146,10 @@ const vertexShader = `
       pos.y,
       pos.x * sinA + pos.z * cosA
     );
+    
+    // Scale down to fit within canvas bounds (prevent top/bottom clipping)
+    float cloudScale = 0.7;
+    rotatedPos *= cloudScale;
     
     // Apply aspect ratio correction to keep sphere circular
     vec2 correctedPos = vec2(rotatedPos.x / u_aspect, rotatedPos.y);

@@ -103,16 +103,20 @@ const fragmentShader = `
     // Center audio around 0.5 so it can go both positive (expand) and negative (contract)
     float bassSigned = (u_bass - 0.5) * 2.0;  // Now ranges from -1 to 1
     float midSigned = (u_mid - 0.5) * 2.0;
+    float trebleSigned = (u_treble - 0.5) * 2.0;
     
-    // Base sizes are constant
-    float baseSphereRadius = 0.9;
-    float baseHexSize = 0.125;
-    float baseCoreRadius = 0.35;
+    // Base sizes are constant - slightly smaller to leave room for expansion
+    float baseSphereRadius = 0.75;
+    float baseHexSize = 0.11;
+    float baseCoreRadius = 0.30;
+    
+    // Combine all frequencies for sphere breathing (mids and treble strong)
+    float combinedEffect = bassSigned * 0.4 + midSigned * 0.7 + trebleSigned * 0.8;
     
     // Intensity controls how far from base we deviate (the range of movement)
-    float sphereRadius = baseSphereRadius + bassSigned * u_intensity * 0.15;
-    float hexSize = baseHexSize + bassSigned * u_intensity * 0.03;
-    float coreRadius = baseCoreRadius + midSigned * u_intensity * 0.08;
+    float sphereRadius = baseSphereRadius + combinedEffect * u_intensity * 0.12;
+    float hexSize = baseHexSize + (bassSigned * 0.3 + midSigned * 0.5 + trebleSigned * 0.6) * u_intensity * 0.025;
+    float coreRadius = baseCoreRadius + (midSigned * 0.7 + trebleSigned * 0.5) * u_intensity * 0.06;
     
     // Core rotation (slower than outer shell)
     mat3 coreRot = rotateY(u_time * 0.15) * rotateX(u_time * 0.1);
