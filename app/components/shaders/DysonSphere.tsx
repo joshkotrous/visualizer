@@ -106,8 +106,11 @@ const fragmentShader = `
     float midSigned = (u_mid - 0.5) * 2.0;
     float trebleSigned = (u_treble - 0.5) * 2.0;
     
-    // Combine all frequencies (mids and treble strong)
-    float combinedEffect = bassSigned * 0.4 + midSigned * 0.7 + trebleSigned * 0.8;
+    // Combine all frequencies (bass dominant for breathing effect)
+    float combinedEffect = bassSigned * 1.2 + midSigned * 0.5 + trebleSigned * 0.4;
+    
+    // Clamp the combined effect to limit peak expansion
+    combinedEffect = clamp(combinedEffect, -1.0, 0.7);
     
     // Base sizes - hexagons start contracted, explode outward on peaks
     float baseSphereRadius = 0.65;
@@ -115,13 +118,13 @@ const fragmentShader = `
     float baseCoreRadius = 0.30;
     
     // Sphere radius: hexagons come together at base (-1), explode at peak (+1)
-    // Large multiplier for dramatic effect, clamped to stay positive
-    float sphereDelta = combinedEffect * u_intensity * 0.4;
-    float sphereRadius = max(0.3, baseSphereRadius + sphereDelta);
+    // Moderate multiplier with clamped input for controlled breathing
+    float sphereDelta = combinedEffect * u_intensity * 0.35;
+    float sphereRadius = max(0.35, baseSphereRadius + sphereDelta);
     
-    // Hex size also grows/shrinks dramatically with audio, clamped to stay visible
-    float hexDelta = combinedEffect * u_intensity * 0.1;
-    float hexSize = max(0.03, baseHexSize + hexDelta);
+    // Hex size also grows/shrinks with audio, clamped to stay visible
+    float hexDelta = combinedEffect * u_intensity * 0.08;
+    float hexSize = max(0.04, baseHexSize + hexDelta);
     
     // Core pulses with mids and treble
     float coreRadius = baseCoreRadius + (midSigned * 0.7 + trebleSigned * 0.5) * u_intensity * 0.1;
