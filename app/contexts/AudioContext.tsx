@@ -27,11 +27,13 @@ interface AudioContextState {
   analyserNode: AnalyserNode | null;
   currentSource: AudioSource | null;
   audioMetrics: AudioMetrics;
+  intensity: number; // 0-2, multiplier for audio effects
 }
 
 interface AudioContextActions {
   startAudio: (source: AudioSource) => Promise<void>;
   stopAudio: () => void;
+  setIntensity: (value: number) => void;
 }
 
 type AudioContextValue = AudioContextState & AudioContextActions;
@@ -54,6 +56,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     treble: 0,
     overall: 0,
   });
+  const [intensity, setIntensity] = useState(1.0);
 
   const audioContextRef = useRef<globalThis.AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -278,8 +281,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     analyserNode,
     currentSource,
     audioMetrics,
+    intensity,
     startAudio,
     stopAudio,
+    setIntensity,
   };
 
   return <AudioContext.Provider value={value}>{children}</AudioContext.Provider>;

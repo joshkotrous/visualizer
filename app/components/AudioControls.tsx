@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAudio, AudioSource } from "../contexts/AudioContext";
-import { Play, Square, Mic, Monitor, ChevronDown } from "lucide-react";
+import { Play, Square, Mic, Monitor, ChevronDown, Gauge } from "lucide-react";
 
 const sourceOptions: { value: AudioSource; label: string }[] = [
   { value: "microphone", label: "Microphone" },
@@ -11,7 +11,7 @@ const sourceOptions: { value: AudioSource; label: string }[] = [
 ];
 
 export function AudioControls() {
-  const { isListening, error, currentSource, startAudio, stopAudio } = useAudio();
+  const { isListening, error, currentSource, intensity, startAudio, stopAudio, setIntensity } = useAudio();
   const [selectedSource, setSelectedSource] = useState<AudioSource>("system");
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -99,6 +99,20 @@ export function AudioControls() {
           </button>
         </>
       )}
+
+      {/* Intensity slider */}
+      <div className="flex items-center gap-2 text-sm text-zinc-500">
+        <Gauge className="w-3.5 h-3.5" />
+        <input
+          type="range"
+          min="0"
+          max="2"
+          step="0.1"
+          value={intensity}
+          onChange={(e) => setIntensity(parseFloat(e.target.value))}
+          className="w-20 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-zinc-500"
+        />
+      </div>
 
       {error && <div className="text-sm text-red-400">{error}</div>}
     </div>

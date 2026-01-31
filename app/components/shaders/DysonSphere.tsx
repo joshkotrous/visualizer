@@ -21,6 +21,7 @@ const fragmentShader = `
   uniform float u_bass;
   uniform float u_mid;
   uniform float u_treble;
+  uniform float u_intensity;
   
   #define PI 3.14159265359
   #define TAU 6.28318530718
@@ -98,12 +99,20 @@ const fragmentShader = `
     // Single rotation matrix for all hexes - they rotate together as a group
     mat3 hexRot = rotateY(u_time * 0.2) * rotateX(u_time * 0.12);
     
-    // Breathing effect based on bass
-    float breathe = 1.0 + u_bass * 0.3;
+    // Breathing effect - intensity controls the RANGE of movement, not base size
+    // Center audio around 0.5 so it can go both positive (expand) and negative (contract)
+    float bassSigned = (u_bass - 0.5) * 2.0;  // Now ranges from -1 to 1
+    float midSigned = (u_mid - 0.5) * 2.0;
     
-    float sphereRadius = 0.9 * breathe;
-    float hexSize = 0.125 * (1.0 + u_bass * 0.2);
-    float coreRadius = 0.35 * (1.0 + u_mid * 0.15);
+    // Base sizes are constant
+    float baseSphereRadius = 0.9;
+    float baseHexSize = 0.125;
+    float baseCoreRadius = 0.35;
+    
+    // Intensity controls how far from base we deviate (the range of movement)
+    float sphereRadius = baseSphereRadius + bassSigned * u_intensity * 0.15;
+    float hexSize = baseHexSize + bassSigned * u_intensity * 0.03;
+    float coreRadius = baseCoreRadius + midSigned * u_intensity * 0.08;
     
     // Core rotation (slower than outer shell)
     mat3 coreRot = rotateY(u_time * 0.15) * rotateX(u_time * 0.1);
@@ -422,7 +431,7 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
   const animationRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const { theme } = useTheme();
-  const { audioMetrics } = useAudio();
+  const { audioMetrics, intensity } = useAudio();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -489,13 +498,14 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
     const bassLoc = gl.getUniformLocation(program, "u_bass");
     const midLoc = gl.getUniformLocation(program, "u_mid");
     const trebleLoc = gl.getUniformLocation(program, "u_treble");
+    const intensityLoc = gl.getUniformLocation(program, "u_intensity");
 
     const [r, g, b] = hexToRgb(theme.config.shader || theme.config.primary);
 
     startTimeRef.current = performance.now();
     
     // Store audio ref for render loop
-    let currentAudio = { bass: 0, mid: 0, treble: 0 };
+    let currentAudio = { bass: 0, mid: 0, treble: 0, intensity: 1 };
 
     const render = () => {
       const time = (performance.now() - startTimeRef.current) / 1000;
@@ -513,6 +523,7 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
       gl.uniform1f(bassLoc, currentAudio.bass);
       gl.uniform1f(midLoc, currentAudio.mid);
       gl.uniform1f(trebleLoc, currentAudio.treble);
+      gl.uniform1f(intensityLoc, currentAudio.intensity);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
@@ -520,7 +531,7 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
     };
     
     // Update audio values from external source
-    const updateAudio = (metrics: { bass: number; mid: number; treble: number }) => {
+    const updateAudio = (metrics: { bass: number; mid: number; treble: number; intensity: number }) => {
       currentAudio = metrics;
     };
     
@@ -542,11 +553,11 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number }) => void };
+    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number; intensity: number }) => void };
     if (canvasWithAudio.updateAudio) {
-      canvasWithAudio.updateAudio(audioMetrics);
+      canvasWithAudio.updateAudio({ ...audioMetrics, intensity });
     }
-  }, [audioMetrics]);
+  }, [audioMetrics, intensity]);
 
   return (
     <canvas

@@ -20,6 +20,7 @@ const vertexShader = `
   uniform float u_bass;
   uniform float u_mid;
   uniform float u_treble;
+  uniform float u_intensity;
   
   varying vec3 v_color;
   varying float v_alpha;
@@ -111,18 +112,27 @@ const vertexShader = `
     float detailNoise3 = snoise(vec3(pos.z * 3.0, pos.x * 3.0, t * 1.5 + 100.0)) * 0.3;
     
     // Breathing/pulsing effect - radial to maintain sphere shape
-    // Enhanced with audio reactivity
+    // Center audio around 0.5 so it can expand AND contract
+    float bassSigned = (u_bass - 0.5) * 2.0;  // Now ranges from -1 to 1
+    float midSigned = (u_mid - 0.5) * 2.0;
+    float trebleSigned = (u_treble - 0.5) * 2.0;
+    
     float distFromCenter = length(pos);
     float baseBreathe = sin(u_time * 0.3 + distFromCenter * 3.0) * 0.08;
-    float audioBreathe = u_bass * 0.25 + u_mid * 0.1; // Bass drives main expansion
+    
+    // Intensity controls the RANGE of breathing movement
+    float audioBreathe = (bassSigned * 0.3 + midSigned * 0.15) * u_intensity;
     float breathe = baseBreathe + audioBreathe;
     vec3 radialDir = normalize(pos + 0.001); // Normalize with small offset to avoid zero
     
-    // Add audio-reactive noise intensity
-    float audioNoiseBoost = 1.0 + u_treble * 0.5;
-    pos.x += (noise1 + detailNoise1) * 0.15 * audioNoiseBoost;
-    pos.y += (noise2 + detailNoise2) * 0.15 * audioNoiseBoost;
-    pos.z += (noise3 + detailNoise3) * 0.15 * audioNoiseBoost;
+    // Base noise movement (constant) + audio-reactive extra scatter (intensity controls range)
+    float baseNoiseScale = 0.15;
+    float audioNoiseScale = trebleSigned * u_intensity * 0.15;
+    float totalNoiseScale = baseNoiseScale + audioNoiseScale;
+    
+    pos.x += (noise1 + detailNoise1) * totalNoiseScale;
+    pos.y += (noise2 + detailNoise2) * totalNoiseScale;
+    pos.z += (noise3 + detailNoise3) * totalNoiseScale;
     
     // Apply radial breathing
     pos += radialDir * breathe;
@@ -248,7 +258,7 @@ export default function ParticleCloud({
     Array<{ x: number; y: number; vx: number; vy: number; age: number }>
   >([]);
   const { theme } = useTheme();
-  const { audioMetrics } = useAudio();
+  const { audioMetrics, intensity } = useAudio();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -410,13 +420,14 @@ export default function ParticleCloud({
     const bassLoc = gl.getUniformLocation(program, "u_bass");
     const midLoc = gl.getUniformLocation(program, "u_mid");
     const trebleLoc = gl.getUniformLocation(program, "u_treble");
+    const intensityLoc = gl.getUniformLocation(program, "u_intensity");
     const trailLocs: WebGLUniformLocation[] = [];
     for (let i = 0; i < 8; i++) {
       trailLocs.push(gl.getUniformLocation(program, `u_trail[${i}]`)!);
     }
     
     // Store audio ref for render loop
-    let currentAudio = { bass: 0, mid: 0, treble: 0 };
+    let currentAudio = { bass: 0, mid: 0, treble: 0, intensity: 1 };
 
     // Enable blending for soft particles
     gl.enable(gl.BLEND);
@@ -494,6 +505,7 @@ export default function ParticleCloud({
       gl.uniform1f(bassLoc, currentAudio.bass);
       gl.uniform1f(midLoc, currentAudio.mid);
       gl.uniform1f(trebleLoc, currentAudio.treble);
+      gl.uniform1f(intensityLoc, currentAudio.intensity);
 
       // Pass trail data to shader
       for (let i = 0; i < 8; i++) {
@@ -518,7 +530,7 @@ export default function ParticleCloud({
     };
     
     // Update audio values from external source
-    const updateAudio = (metrics: { bass: number; mid: number; treble: number }) => {
+    const updateAudio = (metrics: { bass: number; mid: number; treble: number; intensity: number }) => {
       currentAudio = metrics;
     };
     
@@ -542,11 +554,11 @@ export default function ParticleCloud({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number }) => void };
+    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number; intensity: number }) => void };
     if (canvasWithAudio.updateAudio) {
-      canvasWithAudio.updateAudio(audioMetrics);
+      canvasWithAudio.updateAudio({ ...audioMetrics, intensity });
     }
-  }, [audioMetrics]);
+  }, [audioMetrics, intensity]);
 
   return (
     <canvas

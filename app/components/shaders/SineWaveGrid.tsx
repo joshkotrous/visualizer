@@ -21,6 +21,7 @@ const fragmentShader = `
   uniform float u_bass;
   uniform float u_mid;
   uniform float u_treble;
+  uniform float u_intensity;
   
   // Isometric projection helpers (flipped direction)
   vec2 toIso(vec3 p) {
@@ -58,8 +59,10 @@ const fragmentShader = `
     int numWaves = 8;
     float gridDepth = 6.0;
     float gridWidth = 4.0;
-    // Audio-reactive wave height - bass increases amplitude
-    float waveHeight = 0.4 * (1.0 + u_bass * 1.5);
+    // Center audio so wave height can increase AND decrease from base
+    float bassSigned = (u_bass - 0.5) * 2.0;
+    float baseWaveHeight = 0.4;
+    float waveHeight = baseWaveHeight + bassSigned * u_intensity * 0.3;
     
     // Draw multiple sine wave lines in isometric view
     float waveSpacing = 1.2;
@@ -82,14 +85,16 @@ const fragmentShader = `
         
         // Multiple overlapping sine waves with variation per wave - smoother motion
         // Audio-reactive: mid affects wave speed, treble adds high-freq shake
-        float speedBoost = 1.0 + u_mid * 2.0;
+        float midSigned = (u_mid - 0.5) * 2.0;
+        float trebleSigned = (u_treble - 0.5) * 2.0;
+        float speedBoost = 1.0 + midSigned * u_intensity * 1.0;
         float y = sin(x * 2.0 + u_time * (1.2 + float(w) * 0.3) * speedBoost + wavePhase) * waveHeight * 0.5;
         y += sin(x * 3.5 - u_time * (0.8 + float(w) * 0.2) * speedBoost + wavePhase * 2.0) * waveHeight * 0.25;
         y += sin(x * 1.2 + u_time * (1.5 - float(w) * 0.2) * speedBoost + wavePhase * 0.5) * waveHeight * 0.25;
         
-        // Add high-frequency shake on treble
-        y += sin(x * 15.0 + u_time * 8.0) * u_treble * 0.15;
-        y += sin(x * 25.0 - u_time * 12.0) * u_treble * 0.08;
+        // Add high-frequency shake - intensity controls the range
+        y += sin(x * 15.0 + u_time * 8.0) * trebleSigned * u_intensity * 0.1;
+        y += sin(x * 25.0 - u_time * 12.0) * trebleSigned * u_intensity * 0.06;
         
         // Fade at edges
         float edgeFade = smoothstep(0.0, 0.2, t) * smoothstep(1.0, 0.8, t);
@@ -193,7 +198,7 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
   const animationRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const { theme } = useTheme();
-  const { audioMetrics } = useAudio();
+  const { audioMetrics, intensity } = useAudio();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -260,13 +265,14 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
     const bassLoc = gl.getUniformLocation(program, "u_bass");
     const midLoc = gl.getUniformLocation(program, "u_mid");
     const trebleLoc = gl.getUniformLocation(program, "u_treble");
+    const intensityLoc = gl.getUniformLocation(program, "u_intensity");
 
     const [r, g, b] = hexToRgb(theme.config.shader || theme.config.primary);
 
     startTimeRef.current = performance.now();
     
     // Store audio ref for render loop
-    let currentAudio = { bass: 0, mid: 0, treble: 0 };
+    let currentAudio = { bass: 0, mid: 0, treble: 0, intensity: 1 };
 
     const render = () => {
       const time = (performance.now() - startTimeRef.current) / 1000;
@@ -284,6 +290,7 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
       gl.uniform1f(bassLoc, currentAudio.bass);
       gl.uniform1f(midLoc, currentAudio.mid);
       gl.uniform1f(trebleLoc, currentAudio.treble);
+      gl.uniform1f(intensityLoc, currentAudio.intensity);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
@@ -291,7 +298,7 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
     };
     
     // Update audio values from external source
-    const updateAudio = (metrics: { bass: number; mid: number; treble: number }) => {
+    const updateAudio = (metrics: { bass: number; mid: number; treble: number; intensity: number }) => {
       currentAudio = metrics;
     };
     
@@ -313,11 +320,11 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number }) => void };
+    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number; intensity: number }) => void };
     if (canvasWithAudio.updateAudio) {
-      canvasWithAudio.updateAudio(audioMetrics);
+      canvasWithAudio.updateAudio({ ...audioMetrics, intensity });
     }
-  }, [audioMetrics]);
+  }, [audioMetrics, intensity]);
 
   return (
     <canvas

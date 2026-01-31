@@ -6,17 +6,25 @@ import { ThemeProvider } from "./components/providers/themeProvider";
 import SineWaveGrid from "./components/shaders/SineWaveGrid";
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden">
       <ThemeProvider>
-        <div className="flex">
+        <div className="flex shrink-0">
           <AudioControls />
         </div>
-        <div className="grid grid-cols-3 gap-4  ">
-          <DysonSphere />
-          <ParticleCloud />
-          <SineWaveGrid />
+        <div className="flex justify-center items-center gap-4 p-4">
+          <div className="w-[280px] h-[200px]">
+            <DysonSphere />
+          </div>
+          <div className="w-[280px] h-[200px]">
+            <ParticleCloud />
+          </div>
+          <div className="w-[280px] h-[200px]">
+            <SineWaveGrid />
+          </div>
         </div>
-        <Waveform height={200} />
+        <div className="shrink-0">
+          <Waveform height={150} />
+        </div>
       </ThemeProvider>
     </div>
   );
