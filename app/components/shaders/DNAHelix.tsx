@@ -58,6 +58,7 @@ const fragmentShader = `
     float bassSigned = (u_bass - 0.5) * 2.0;
     float midSigned = (u_mid - 0.5) * 2.0;
     float trebleSigned = (u_treble - 0.5) * 2.0;
+    float audioLevel = u_bass * 0.4 + u_mid * 0.35 + u_treble * 0.25;
     
     vec3 col = vec3(0.0);
     float brightness = 0.0;
@@ -70,8 +71,13 @@ const fragmentShader = `
     float baseRadius = 0.25;
     float helixRadius = baseRadius + bassSigned * u_intensity * 0.08;
     
+    // Flow pulse parameters - multiple waves traveling along the helix
+    float flowSpeed = 2.0 + audioLevel * u_intensity * 2.0;
+    float pulseWidth = 0.3 + trebleSigned * u_intensity * 0.1;
+    
     // Draw the two strands
     float strandGlow = 0.0;
+    float flowGlow = 0.0;
     
     // Sample points along the helix
     const float NUM_SAMPLES = 40.0;
@@ -115,12 +121,46 @@ const fragmentShader = `
       float thickness1 = 0.025 + depth1 * 0.015;
       float thickness2 = 0.025 + depth2 * 0.015;
       
-      // Glow effect
+      // Base glow effect
       float glow1 = smoothstep(thickness1, thickness1 * 0.3, d1) * (0.4 + depth1 * 0.6);
       float glow2 = smoothstep(thickness2, thickness2 * 0.3, d2) * (0.4 + depth2 * 0.6);
       
       strandGlow += glow1 * 0.15;
       strandGlow += glow2 * 0.15;
+      
+      // === FLOW EFFECT - Traveling pulses along the strands ===
+      // Multiple flow waves with different speeds
+      float normalizedY = (y + yRange) / (yRange * 2.0); // 0 to 1
+      
+      // Wave 1 - Main bass-reactive pulse (travels up)
+      float wave1Pos = fract(u_time * flowSpeed * 0.3);
+      float wave1Dist = abs(normalizedY - wave1Pos);
+      wave1Dist = min(wave1Dist, 1.0 - wave1Dist); // Wrap around
+      float wave1 = smoothstep(pulseWidth, 0.0, wave1Dist);
+      wave1 *= (0.5 + u_bass * u_intensity * 1.5);
+      
+      // Wave 2 - Secondary mid-reactive pulse (travels down)
+      float wave2Pos = fract(-u_time * flowSpeed * 0.25 + 0.5);
+      float wave2Dist = abs(normalizedY - wave2Pos);
+      wave2Dist = min(wave2Dist, 1.0 - wave2Dist);
+      float wave2 = smoothstep(pulseWidth * 0.8, 0.0, wave2Dist);
+      wave2 *= (0.3 + u_mid * u_intensity * 1.0);
+      
+      // Wave 3 - Fast treble sparkles
+      float wave3Pos = fract(u_time * flowSpeed * 0.5 + 0.33);
+      float wave3Dist = abs(normalizedY - wave3Pos);
+      wave3Dist = min(wave3Dist, 1.0 - wave3Dist);
+      float wave3 = smoothstep(pulseWidth * 0.5, 0.0, wave3Dist);
+      wave3 *= (0.2 + u_treble * u_intensity * 0.8);
+      
+      float flowPulse = wave1 + wave2 + wave3;
+      
+      // Apply flow to strands (stronger when closer to strand)
+      float flowOnStrand1 = smoothstep(thickness1 * 3.0, thickness1 * 0.5, d1) * flowPulse * depth1;
+      float flowOnStrand2 = smoothstep(thickness2 * 3.0, thickness2 * 0.5, d2) * flowPulse * depth2;
+      
+      flowGlow += flowOnStrand1 * 0.25;
+      flowGlow += flowOnStrand2 * 0.25;
       
       // Base pair rungs (connecting the two strands)
       if (mod(i, 4.0) < 1.0) {
@@ -135,13 +175,22 @@ const fragmentShader = `
         rungGlow *= smoothstep(2.0, 0.5, depthDiff); // Fade when strands are at different depths
         rungGlow *= (0.3 + avgDepth * 0.5);
         
-        // Pulse effect on rungs with treble
+        // Pulse effect on rungs - now also affected by flow
+        float rungFlow = (flowPulse * 0.5 + 0.5);
         float pulse = 1.0 + trebleSigned * u_intensity * 0.5 * sin(i * 0.5 + u_time * 5.0);
-        strandGlow += rungGlow * 0.3 * pulse;
+        strandGlow += rungGlow * 0.3 * pulse * rungFlow;
+        
+        // Extra glow on rungs when flow passes through
+        flowGlow += rungGlow * flowPulse * 0.2 * smoothstep(2.0, 0.5, depthDiff);
       }
     }
     
-    brightness = strandGlow;
+    // Combine base strand glow with flow effect
+    brightness = strandGlow + flowGlow;
+    
+    // Overall audio-reactive brightness boost
+    float audioBoost = 1.0 + audioLevel * u_intensity * 0.5;
+    brightness *= audioBoost;
     
     // Edge fade
     float screenDist = max(abs(uv.x / u_aspect), abs(uv.y));
