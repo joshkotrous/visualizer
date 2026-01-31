@@ -348,7 +348,7 @@ export default function ParticleCloud({
 
     // Generate theme-aware color palette
     const colors = generateColorPalette(
-      theme.config.shader || theme.config.primary
+      theme?.config?.shader || theme?.config?.primary || "#22c55e"
     );
 
     // Generate particles

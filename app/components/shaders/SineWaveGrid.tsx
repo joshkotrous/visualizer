@@ -277,7 +277,7 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
     const trebleLoc = gl.getUniformLocation(program, "u_treble");
     const intensityLoc = gl.getUniformLocation(program, "u_intensity");
 
-    const [r, g, b] = hexToRgb(theme.config.shader || theme.config.primary);
+    const [r, g, b] = hexToRgb(theme?.config?.shader || theme?.config?.primary || "#22c55e");
 
     startTimeRef.current = performance.now();
     

@@ -202,10 +202,10 @@ function hexToRgb(hex: string): [number, number, number] {
 
 export default function RadarSweep() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { theme } = useTheme() as { theme: { config: { shader?: string; primary: string } } | null };
+  const { theme } = useTheme();
   const { audioMetrics, intensity } = useAudio();
   const { settings } = usePerformance();
-  const animationRef = useRef<number>();
+  const animationRef = useRef<number>(0);
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const programRef = useRef<WebGLProgram | null>(null);
   const startTimeRef = useRef<number>(Date.now());

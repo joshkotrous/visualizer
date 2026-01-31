@@ -8,12 +8,20 @@ export type CustomThemeColors = {
   header: string;
 };
 
-export const ThemeContext = createContext({
+type ThemeContextType = {
+  theme: Theme | null;
+  isLoading: boolean;
+  handleThemeChange: (theme: string) => void;
+  applyCustomTheme: (colors: CustomThemeColors) => void;
+  customColors: CustomThemeColors | null;
+};
+
+export const ThemeContext = createContext<ThemeContextType>({
   theme: null,
   isLoading: true,
-  handleThemeChange: (theme: string) => {},
-  applyCustomTheme: (colors: CustomThemeColors) => {},
-  customColors: null as CustomThemeColors | null,
+  handleThemeChange: () => {},
+  applyCustomTheme: () => {},
+  customColors: null,
 });
 
 type Theme = {

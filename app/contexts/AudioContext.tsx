@@ -63,8 +63,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const sourcesRef = useRef<MediaStreamAudioSourceNode[]>([]);
   const streamsRef = useRef<MediaStream[]>([]);
   const animationFrameRef = useRef<number | null>(null);
-  const waveformBufferRef = useRef<Uint8Array | null>(null);
-  const frequencyBufferRef = useRef<Uint8Array | null>(null);
+  const waveformBufferRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const frequencyBufferRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
 
   // Cleanup function that can be called from event listeners
   const cleanup = useCallback(() => {

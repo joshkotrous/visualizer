@@ -28,7 +28,7 @@ function TFTShader() {
 
   const shaderMaterial = useMemo(() => {
     // Get color values from theme context
-    const colorValues = theme
+    const colorValues = theme?.config
       ? hexToVector3(theme.config.shader || theme.config.primary)
       : new Vector3(0.996, 0.604, 0.0); // fallback to amber
 
