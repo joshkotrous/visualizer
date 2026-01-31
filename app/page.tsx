@@ -3,7 +3,7 @@ import { Waveform } from "./components/Waveform";
 import { AudioControls } from "./components/AudioControls";
 import DysonSphere from "./components/shaders/DysonSphere";
 import ParticleCloud from "./components/shaders/ParticleCloud";
-import { ThemeProvider } from "./components/providers/themeProvider";
+import { ThemeProvider, useTheme } from "./components/providers/themeProvider";
 import SineWaveGrid from "./components/shaders/SineWaveGrid";
 import { AsciiAudioEffect } from "./components/shaders/AsciiAudioEffect";
 import MagiCore from "./components/shaders/MagiCore";
@@ -14,59 +14,88 @@ import NeuralStorm from "./components/shaders/NeuralStorm";
 import NeuralConstellation from "./components/shaders/NeuralConstellation";
 import DNAHelix from "./components/shaders/DNAHelix";
 import { ThemeDropdown } from "./components/ThemeDropdown";
+import BloomEffect from "./components/shaders/BloomEffect";
+import ColoredNoiseOverlay from "./components/shaders/ColoredNoiseOverlay";
+import TFTOverlay from "./components/shaders/TFTOverlay";
+function VisualizerGrid() {
+  const { theme } = useTheme() as {
+    theme: { config: { border: string; primary: string } } | null;
+  };
+  const borderColor =
+    theme?.config?.border || theme?.config?.primary || "#22c55e";
+  
+  // Use gap approach: grid background = border color, gap reveals it as borders
+  const gridStyle = { backgroundColor: borderColor, padding: '2px' };
+  const gapStyle = { gap: '2px' };
+
+  return (
+    <div className="flex-1 p-4 overflow-auto flex items-start justify-center">
+      {/* Main grid - 4 columns, responsive. Background shows through gap as borders */}
+      <div 
+        className="grid grid-cols-4 w-full max-w-[1120px]"
+        style={{ ...gridStyle, ...gapStyle }}
+      >
+        {/* Row 1 */}
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <DysonSphere />
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <ParticleCloud />
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <SineWaveGrid />
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <DNAHelix />
+        </div>
+
+        {/* Row 2 */}
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <MagiCore />
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <RadarSweep />
+        </div>
+        {/* Neural Web cell with nested grid */}
+        <div 
+          className="aspect-[7/5] overflow-hidden flex"
+          style={{ backgroundColor: borderColor, gap: '2px' }}
+        >
+          <div className="w-1/2 h-full overflow-hidden bg-[#0a0a0a]">
+            <NeuralWeb />
+          </div>
+          <div className="w-1/2 h-full flex flex-col" style={{ gap: '2px' }}>
+            <div className="w-full flex-1 overflow-hidden bg-[#0a0a0a]">
+              <NeuralPulse />
+            </div>
+            <div className="w-full flex-1 overflow-hidden bg-[#0a0a0a]">
+              <NeuralStorm />
+            </div>
+          </div>
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <AsciiAudioEffect />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <ThemeProvider>
+        <BloomEffect />
+
+        <ColoredNoiseOverlay />
+        {/* <MonochromeNoiseOverlay /> */}
+        <TFTOverlay />
         <div className="flex shrink-0">
           <AudioControls />
           <ThemeDropdown />
         </div>
-        
-        <div className="flex-1 p-4 overflow-auto flex items-start justify-center">
-          {/* Main grid - 4 columns, responsive */}
-          <div className="grid grid-cols-4 w-full max-w-[1120px]">
-            {/* Row 1 */}
-            <div className="aspect-[7/5] border border-white/20 overflow-hidden">
-              <DysonSphere />
-            </div>
-            <div className="aspect-[7/5] border border-l-0 border-white/20 overflow-hidden">
-              <ParticleCloud />
-            </div>
-            <div className="aspect-[7/5] border border-l-0 border-white/20 overflow-hidden">
-              <SineWaveGrid />
-            </div>
-            <div className="aspect-[7/5] border border-l-0 border-white/20 overflow-hidden">
-              <DNAHelix />
-            </div>
-            
-            {/* Row 2 */}
-            <div className="aspect-[7/5] border border-t-0 border-white/20 overflow-hidden">
-              <MagiCore />
-            </div>
-            <div className="aspect-[7/5] border border-t-0 border-l-0 border-white/20 overflow-hidden">
-              <RadarSweep />
-            </div>
-            {/* Neural Web cell with nested grid */}
-            <div className="aspect-[7/5] border border-t-0 border-l-0 border-white/20 overflow-hidden flex">
-              <div className="w-1/2 h-full border-r border-white/20 overflow-hidden">
-                <NeuralWeb />
-              </div>
-              <div className="w-1/2 h-full flex flex-col">
-                <div className="w-full h-1/2 border-b border-white/20 overflow-hidden">
-                  <NeuralPulse />
-                </div>
-                <div className="w-full h-1/2 overflow-hidden">
-                  <NeuralStorm />
-                </div>
-              </div>
-            </div>
-            <div className="aspect-[7/5] border border-t-0 border-l-0 border-white/20 overflow-hidden">
-              <AsciiAudioEffect />
-            </div>
-          </div>
-        </div>
+
+        <VisualizerGrid />
 
         <div className="shrink-0">
           <Waveform height={150} />
