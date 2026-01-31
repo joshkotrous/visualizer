@@ -1,9 +1,10 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { ShaderMaterial, Vector2, Vector3 } from "three";
 import { useTheme } from "../providers/themeProvider";
+import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
 
 // Helper function to convert hex color to Vector3
 function hexToVector3(hex: string): Vector3 {
@@ -17,6 +18,13 @@ function hexToVector3(hex: string): Vector3 {
 function TFTShader() {
   const materialRef = useRef<ShaderMaterial>(null);
   const { theme } = useTheme();
+  const { settings } = usePerformance();
+  const perfRef = useRef(settings);
+  const lastFrameTimeRef = useRef(0);
+
+  useEffect(() => {
+    perfRef.current = settings;
+  }, [settings]);
 
   const shaderMaterial = useMemo(() => {
     // Get color values from theme context
@@ -89,6 +97,13 @@ function TFTShader() {
   }, [theme]);
 
   useFrame(({ clock }) => {
+    const timestamp = performance.now();
+    const frameDelay = getFrameDelay(perfRef.current.targetFPS);
+    if (frameDelay > 0 && timestamp - lastFrameTimeRef.current < frameDelay) {
+      return;
+    }
+    lastFrameTimeRef.current = timestamp;
+
     if (materialRef.current) {
       materialRef.current.uniforms.iTime.value = clock.elapsedTime;
       materialRef.current.uniforms.iResolution.value.set(
@@ -107,6 +122,8 @@ function TFTShader() {
 }
 
 export default function TFTOverlay() {
+  const { settings } = usePerformance();
+
   return (
     <div
       className="fixed inset-0 pointer-events-none z-50"
@@ -119,6 +136,7 @@ export default function TFTOverlay() {
       <Canvas
         orthographic
         camera={{ position: [0, 0, 1], zoom: 1 }}
+        dpr={Math.min(window.devicePixelRatio || 1, settings.pixelRatio)}
         style={{
           background: "transparent",
           pointerEvents: "none",

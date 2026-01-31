@@ -1,11 +1,19 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import { ShaderMaterial, Vector2 } from "three";
+import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
 
 function ColoredNoiseShader() {
   const materialRef = useRef<ShaderMaterial>(null);
+  const { settings } = usePerformance();
+  const perfRef = useRef(settings);
+  const lastFrameTimeRef = useRef(0);
+
+  useEffect(() => {
+    perfRef.current = settings;
+  }, [settings]);
 
   const shaderMaterial = useMemo(() => {
     const fragmentShader = `
@@ -131,6 +139,13 @@ function ColoredNoiseShader() {
   }, []);
 
   useFrame(({ clock }) => {
+    const timestamp = performance.now();
+    const frameDelay = getFrameDelay(perfRef.current.targetFPS);
+    if (frameDelay > 0 && timestamp - lastFrameTimeRef.current < frameDelay) {
+      return;
+    }
+    lastFrameTimeRef.current = timestamp;
+
     if (materialRef.current) {
       materialRef.current.uniforms.iTime.value = clock.elapsedTime;
       materialRef.current.uniforms.iResolution.value.set(
@@ -149,6 +164,9 @@ function ColoredNoiseShader() {
 }
 
 export default function ColoredNoiseOverlay() {
+  const { settings } = usePerformance();
+  const dpr = Math.min(window.devicePixelRatio || 1, settings.pixelRatio);
+
   return (
     <div
       className="fixed inset-0 pointer-events-none z-50"
@@ -161,6 +179,7 @@ export default function ColoredNoiseOverlay() {
       <Canvas
         orthographic
         camera={{ position: [0, 0, 1], zoom: 1 }}
+        dpr={dpr}
         style={{
           background: "transparent",
           pointerEvents: "none",

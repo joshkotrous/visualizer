@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { useTheme } from "../providers/themeProvider";
 import { useAudio } from "../../contexts/AudioContext";
+import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
 
 const vertexShader = `
   attribute vec2 a_position;
@@ -176,11 +177,17 @@ export default function DNAHelix() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { theme } = useTheme() as { theme: { config: { shader?: string; primary: string } } | null };
   const { audioMetrics, intensity } = useAudio();
+  const { settings } = usePerformance();
   const animationRef = useRef<number>();
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const programRef = useRef<WebGLProgram | null>(null);
   const startTimeRef = useRef<number>(Date.now());
   const audioRef = useRef({ bass: 0, mid: 0, treble: 0, intensity: 1 });
+  const perfRef = useRef(settings);
+
+  useEffect(() => {
+    perfRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     audioRef.current = { ...audioMetrics, intensity };
@@ -237,9 +244,25 @@ export default function DNAHelix() {
     const shaderColor = theme?.config?.shader || theme?.config?.primary || "#22c55e";
     const [r, g, b] = hexToRgb(shaderColor);
 
-    const render = () => {
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
+    let lastFrameTime = 0;
+    let currentPixelRatio = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
+
+    const render = (timestamp: number) => {
+      const frameDelay = getFrameDelay(perfRef.current.targetFPS);
+      if (frameDelay > 0 && timestamp - lastFrameTime < frameDelay) {
+        animationRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastFrameTime = timestamp;
+
+      // Check for pixel ratio changes
+      const newPixelRatio = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
+      if (newPixelRatio !== currentPixelRatio) {
+        currentPixelRatio = newPixelRatio;
+      }
+
+      const width = Math.floor(canvas.clientWidth * currentPixelRatio);
+      const height = Math.floor(canvas.clientHeight * currentPixelRatio);
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
         canvas.height = height;
@@ -268,7 +291,7 @@ export default function DNAHelix() {
       animationRef.current = requestAnimationFrame(render);
     };
 
-    render();
+    render(performance.now());
 
     return () => {
       if (animationRef.current) cancelAnimationFrame(animationRef.current);

@@ -18,6 +18,8 @@ import BloomEffect from "./components/shaders/BloomEffect";
 import ColoredNoiseOverlay from "./components/shaders/ColoredNoiseOverlay";
 import TFTOverlay from "./components/shaders/TFTOverlay";
 import { useAudio } from "./contexts/AudioContext";
+import { PerformanceProvider } from "./contexts/PerformanceContext";
+import { PerformanceControls } from "./components/PerformanceControls";
 
 function hexToRgb(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -119,21 +121,24 @@ function VisualizerGrid() {
 export default function Home() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
-      <ThemeProvider>
-        <ColoredNoiseOverlay />
-        {/* <MonochromeNoiseOverlay /> */}
-        <TFTOverlay />
-        <div className="flex shrink-0">
-          <AudioControls />
-          <ThemeDropdown />
-        </div>
+      <PerformanceProvider>
+        <ThemeProvider>
+          <ColoredNoiseOverlay />
+          {/* <MonochromeNoiseOverlay /> */}
+          <TFTOverlay />
+          <div className="flex shrink-0 items-center">
+            <AudioControls />
+            <ThemeDropdown />
+            <PerformanceControls />
+          </div>
 
-        <VisualizerGrid />
+          <VisualizerGrid />
 
-        <div className="shrink-0">
-          <Waveform height={150} />
-        </div>
-      </ThemeProvider>
+          <div className="shrink-0">
+            <Waveform height={150} />
+          </div>
+        </ThemeProvider>
+      </PerformanceProvider>
     </div>
   );
 }

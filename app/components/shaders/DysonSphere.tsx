@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { useTheme } from "../providers/themeProvider";
 import { useAudio } from "../../contexts/AudioContext";
+import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
 
 const vertexShader = `
   attribute vec2 a_position;
@@ -441,8 +442,15 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
-  const { theme } = useTheme();
+  const { theme } = useTheme() as { theme: { config: { shader?: string; primary: string } } | null };
   const { audioMetrics, intensity } = useAudio();
+  const { settings } = usePerformance();
+  const perfRef = useRef(settings);
+
+  // Keep perf ref updated
+  useEffect(() => {
+    perfRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -455,9 +463,9 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
     });
     if (!gl) return;
 
-    // Resize handler
+    // Resize handler - uses performance settings for pixel ratio
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
       canvas.width = canvas.clientWidth * dpr;
       canvas.height = canvas.clientHeight * dpr;
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -511,14 +519,33 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
     const trebleLoc = gl.getUniformLocation(program, "u_treble");
     const intensityLoc = gl.getUniformLocation(program, "u_intensity");
 
-    const [r, g, b] = hexToRgb(theme.config.shader || theme.config.primary);
+    const [r, g, b] = hexToRgb(theme?.config?.shader || theme?.config?.primary || "#22c55e");
 
     startTimeRef.current = performance.now();
     
     // Store audio ref for render loop
     let currentAudio = { bass: 0, mid: 0, treble: 0, intensity: 1 };
+    let lastFrameTime = 0;
 
-    const render = () => {
+    const render = (timestamp: number) => {
+      // FPS throttling
+      const frameDelay = getFrameDelay(perfRef.current.targetFPS);
+      if (frameDelay > 0 && timestamp - lastFrameTime < frameDelay) {
+        animationRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastFrameTime = timestamp;
+
+      // Check if resize needed (when pixel ratio changes)
+      const dpr = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
+      const targetWidth = canvas.clientWidth * dpr;
+      const targetHeight = canvas.clientHeight * dpr;
+      if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+
       const time = (performance.now() - startTimeRef.current) / 1000;
       const aspect = canvas.width / canvas.height;
 
@@ -549,7 +576,7 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
     // Store update function on canvas for external access
     (canvas as HTMLCanvasElement & { updateAudio?: typeof updateAudio }).updateAudio = updateAudio;
 
-    render();
+    render(performance.now());
 
     return () => {
       window.removeEventListener("resize", resize);

@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { useTheme } from "../providers/themeProvider";
 import { useAudio } from "../../contexts/AudioContext";
+import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
 
 const vertexShader = `
   attribute vec3 a_position;
@@ -263,6 +264,12 @@ export default function ParticleCloud({
   >([]);
   const { theme } = useTheme();
   const { audioMetrics, intensity } = useAudio();
+  const { settings } = usePerformance();
+  const perfRef = useRef(settings);
+
+  useEffect(() => {
+    perfRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -305,8 +312,10 @@ export default function ParticleCloud({
     canvas.addEventListener("mouseleave", handleMouseLeave);
 
     // Resize handler
+    let currentPixelRatio = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
+      currentPixelRatio = dpr;
       canvas.width = canvas.clientWidth * dpr;
       canvas.height = canvas.clientHeight * dpr;
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -442,8 +451,22 @@ export default function ParticleCloud({
     // Smoothed mouse influence for transitions
     let smoothInfluence = 0;
     let lastTrailUpdate = 0;
+    let lastFrameTime = 0;
 
-    const render = () => {
+    const render = (timestamp: number) => {
+      const frameDelay = getFrameDelay(perfRef.current.targetFPS);
+      if (frameDelay > 0 && timestamp - lastFrameTime < frameDelay) {
+        animationRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastFrameTime = timestamp;
+
+      // Check for pixel ratio changes
+      const newPixelRatio = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
+      if (newPixelRatio !== currentPixelRatio) {
+        resize();
+      }
+
       const time = (performance.now() - startTimeRef.current) / 1000;
       const aspect = canvas.width / canvas.height;
       const now = performance.now();
@@ -501,7 +524,7 @@ export default function ParticleCloud({
       gl.enableVertexAttribArray(alphaLoc);
 
       gl.uniform1f(timeLoc, time);
-      gl.uniform1f(pixelRatioLoc, Math.min(window.devicePixelRatio, 2));
+      gl.uniform1f(pixelRatioLoc, currentPixelRatio);
       gl.uniform1f(aspectLoc, aspect);
       gl.uniform2f(mouseLoc, mouseRef.current.x, mouseRef.current.y);
       gl.uniform2f(mouseVelLoc, mouseRef.current.vx, mouseRef.current.vy);
@@ -541,7 +564,7 @@ export default function ParticleCloud({
     // Store update function on canvas for external access
     (canvas as HTMLCanvasElement & { updateAudio?: typeof updateAudio }).updateAudio = updateAudio;
 
-    render();
+    render(performance.now());
 
     return () => {
       canvas.removeEventListener("mousemove", handleMouseMove);

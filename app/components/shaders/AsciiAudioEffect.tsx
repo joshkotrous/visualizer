@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useRef } from "react";
 import { useAudio } from "../../contexts/AudioContext";
+import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
 import { useTheme } from "../providers/themeProvider";
 
 type Gl = WebGL2RenderingContext;
@@ -251,10 +252,18 @@ export function AsciiAudioEffect({ className = "" }: AsciiAudioEffectProps) {
   } | null>(null);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number>(0);
+  const lastFrameTimeRef = useRef<number>(0);
   const audioRef = useRef({ bass: 0, mid: 0, treble: 0, intensity: 1 });
   const colorRef = useRef<[number, number, number]>([0.2, 1.0, 0.4]);
   const { audioMetrics, intensity } = useAudio();
   const { theme } = useTheme() as { theme: { config: { shader?: string; primary: string } } | null };
+  const { settings } = usePerformance();
+  const perfRef = useRef(settings);
+
+  // Keep perfRef updated
+  useEffect(() => {
+    perfRef.current = settings;
+  }, [settings]);
 
   // Update audio ref
   useEffect(() => {
@@ -324,14 +333,22 @@ export function AsciiAudioEffect({ className = "" }: AsciiAudioEffectProps) {
     return { gl, vao, progNoise, progAscii, uNoise, uAscii, texScene, fbScene };
   }, []);
 
-  const render = useCallback((tMs: number) => {
+  const render = useCallback((timestamp: number) => {
+    // FPS throttling
+    const frameDelay = getFrameDelay(perfRef.current.targetFPS);
+    if (frameDelay > 0 && timestamp - lastFrameTimeRef.current < frameDelay) {
+      rafRef.current = requestAnimationFrame(render);
+      return;
+    }
+    lastFrameTimeRef.current = timestamp;
+
     const res = resRef.current;
     const canvas = canvasRef.current;
     if (!res || !canvas) return;
     
     const { gl, vao, progNoise, progAscii, uNoise, uAscii, texScene, fbScene } = res;
-    if (startRef.current === 0) startRef.current = tMs;
-    const t = (tMs - startRef.current) / 1000;
+    if (startRef.current === 0) startRef.current = timestamp;
+    const t = (timestamp - startRef.current) / 1000;
     const w = canvas.width, h = canvas.height;
 
     // Get audio values
@@ -412,17 +429,17 @@ export function AsciiAudioEffect({ className = "" }: AsciiAudioEffectProps) {
     const gl = canvas.getContext("webgl2", { antialias: false, alpha: true, premultipliedAlpha: false });
     if (!gl) return;
     
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
     canvas.width = Math.floor(canvas.clientWidth * dpr);
     canvas.height = Math.floor(canvas.clientHeight * dpr);
     resRef.current = init(gl, canvas.width, canvas.height);
-    rafRef.current = window.requestAnimationFrame(render);
+    rafRef.current = requestAnimationFrame((t) => render(t));
     
     const onResize = () => {
       const c = canvasRef.current;
       const rr = resRef.current;
       if (!c || !rr) return;
-      const d = Math.min(2, window.devicePixelRatio || 1);
+      const d = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
       const W = Math.floor(c.clientWidth * d), H = Math.floor(c.clientHeight * d);
       if (W === c.width && H === c.height) return;
       c.width = W;

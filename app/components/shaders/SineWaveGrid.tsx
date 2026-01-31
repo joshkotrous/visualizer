@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { useTheme } from "../providers/themeProvider";
 import { useAudio } from "../../contexts/AudioContext";
+import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
 
 const vertexShader = `
   attribute vec2 a_position;
@@ -201,6 +202,12 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
   const startTimeRef = useRef<number>(0);
   const { theme } = useTheme();
   const { audioMetrics, intensity } = useAudio();
+  const { settings } = usePerformance();
+  const perfRef = useRef(settings);
+
+  useEffect(() => {
+    perfRef.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -215,11 +222,12 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
 
     // Resize handler
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio, 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, perfRef.current.pixelRatio);
       canvas.width = canvas.clientWidth * dpr;
       canvas.height = canvas.clientHeight * dpr;
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
+    let currentPixelRatio = perfRef.current.pixelRatio;
     resize();
     window.addEventListener("resize", resize);
 
@@ -276,7 +284,21 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
     // Store audio ref for render loop
     let currentAudio = { bass: 0, mid: 0, treble: 0, intensity: 1 };
 
-    const render = () => {
+    let lastFrameTime = 0;
+    const render = (timestamp: number) => {
+      const frameDelay = getFrameDelay(perfRef.current.targetFPS);
+      if (frameDelay > 0 && timestamp - lastFrameTime < frameDelay) {
+        animationRef.current = requestAnimationFrame(render);
+        return;
+      }
+      lastFrameTime = timestamp;
+
+      // Check for pixel ratio changes
+      if (currentPixelRatio !== perfRef.current.pixelRatio) {
+        currentPixelRatio = perfRef.current.pixelRatio;
+        resize();
+      }
+
       const time = (performance.now() - startTimeRef.current) / 1000;
       const aspect = canvas.width / canvas.height;
 
@@ -307,7 +329,7 @@ export default function SineWaveGrid({ className = "" }: SineWaveGridProps) {
     // Store update function on canvas for external access
     (canvas as HTMLCanvasElement & { updateAudio?: typeof updateAudio }).updateAudio = updateAudio;
 
-    render();
+    render(performance.now());
 
     return () => {
       window.removeEventListener("resize", resize);
