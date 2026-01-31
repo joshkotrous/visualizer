@@ -17,21 +17,52 @@ import { ThemeDropdown } from "./components/ThemeDropdown";
 import BloomEffect from "./components/shaders/BloomEffect";
 import ColoredNoiseOverlay from "./components/shaders/ColoredNoiseOverlay";
 import TFTOverlay from "./components/shaders/TFTOverlay";
+import { useAudio } from "./contexts/AudioContext";
+
+function hexToRgb(hex: string): string {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(
+      result[3],
+      16
+    )}`;
+  }
+  return "34, 197, 94"; // fallback green
+}
+
 function VisualizerGrid() {
   const { theme } = useTheme() as {
     theme: { config: { border: string; primary: string } } | null;
   };
+  const { audioMetrics, intensity } = useAudio();
+
   const borderColor =
     theme?.config?.border || theme?.config?.primary || "#22c55e";
-  
+
+  // Calculate glow intensity from audio (mids/highs weighted for responsiveness)
+  const glowIntensity =
+    (audioMetrics.treble * 0.4 +
+      audioMetrics.mid * 0.4 +
+      audioMetrics.bass * 0.2) *
+    intensity;
+  const glowSize = 5 + glowIntensity * 30; // 5px base, up to 35px at peak
+  const glowOpacity = 0.2 + glowIntensity * 0.8; // 0.2 base, up to 1.0 at peak
+
   // Use gap approach: grid background = border color, gap reveals it as borders
-  const gridStyle = { backgroundColor: borderColor, padding: '2px' };
-  const gapStyle = { gap: '2px' };
+  const gridStyle = {
+    backgroundColor: borderColor,
+    padding: "2px",
+    boxShadow: `0 0 ${glowSize}px rgba(${hexToRgb(
+      borderColor
+    )}, ${glowOpacity})`,
+    transition: "box-shadow 0.05s ease-out",
+  };
+  const gapStyle = { gap: "2px" };
 
   return (
     <div className="flex-1 p-4 overflow-auto flex items-start justify-center">
       {/* Main grid - 4 columns, responsive. Background shows through gap as borders */}
-      <div 
+      <div
         className="grid grid-cols-4 w-full max-w-[1120px]"
         style={{ ...gridStyle, ...gapStyle }}
       >
@@ -57,14 +88,14 @@ function VisualizerGrid() {
           <RadarSweep />
         </div>
         {/* Neural Web cell with nested grid */}
-        <div 
+        <div
           className="aspect-[7/5] overflow-hidden flex"
-          style={{ backgroundColor: borderColor, gap: '2px' }}
+          style={{ backgroundColor: borderColor, gap: "2px" }}
         >
           <div className="w-1/2 h-full overflow-hidden bg-[#0a0a0a]">
             <NeuralWeb />
           </div>
-          <div className="w-1/2 h-full flex flex-col" style={{ gap: '2px' }}>
+          <div className="w-1/2 h-full flex flex-col" style={{ gap: "2px" }}>
             <div className="w-full flex-1 overflow-hidden bg-[#0a0a0a]">
               <NeuralPulse />
             </div>
@@ -85,8 +116,6 @@ export default function Home() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <ThemeProvider>
-        <BloomEffect />
-
         <ColoredNoiseOverlay />
         {/* <MonochromeNoiseOverlay /> */}
         <TFTOverlay />
