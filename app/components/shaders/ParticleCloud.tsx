@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useTheme } from "../providers/themeProvider";
+import { useAudio } from "../../contexts/AudioContext";
 
 const vertexShader = `
   attribute vec3 a_position;
@@ -16,6 +17,9 @@ const vertexShader = `
   uniform vec2 u_mouseVel;
   uniform float u_mouseInfluence;
   uniform vec4 u_trail[8]; // xy = position, zw = velocity
+  uniform float u_bass;
+  uniform float u_mid;
+  uniform float u_treble;
   
   varying vec3 v_color;
   varying float v_alpha;
@@ -107,13 +111,18 @@ const vertexShader = `
     float detailNoise3 = snoise(vec3(pos.z * 3.0, pos.x * 3.0, t * 1.5 + 100.0)) * 0.3;
     
     // Breathing/pulsing effect - radial to maintain sphere shape
+    // Enhanced with audio reactivity
     float distFromCenter = length(pos);
-    float breathe = sin(u_time * 0.3 + distFromCenter * 3.0) * 0.08;
+    float baseBreathe = sin(u_time * 0.3 + distFromCenter * 3.0) * 0.08;
+    float audioBreathe = u_bass * 0.25 + u_mid * 0.1; // Bass drives main expansion
+    float breathe = baseBreathe + audioBreathe;
     vec3 radialDir = normalize(pos + 0.001); // Normalize with small offset to avoid zero
     
-    pos.x += (noise1 + detailNoise1) * 0.15;
-    pos.y += (noise2 + detailNoise2) * 0.15;
-    pos.z += (noise3 + detailNoise3) * 0.15;
+    // Add audio-reactive noise intensity
+    float audioNoiseBoost = 1.0 + u_treble * 0.5;
+    pos.x += (noise1 + detailNoise1) * 0.15 * audioNoiseBoost;
+    pos.y += (noise2 + detailNoise2) * 0.15 * audioNoiseBoost;
+    pos.z += (noise3 + detailNoise3) * 0.15 * audioNoiseBoost;
     
     // Apply radial breathing
     pos += radialDir * breathe;
@@ -239,6 +248,7 @@ export default function ParticleCloud({
     Array<{ x: number; y: number; vx: number; vy: number; age: number }>
   >([]);
   const { theme } = useTheme();
+  const { audioMetrics } = useAudio();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -397,10 +407,16 @@ export default function ParticleCloud({
       program,
       "u_mouseInfluence"
     );
+    const bassLoc = gl.getUniformLocation(program, "u_bass");
+    const midLoc = gl.getUniformLocation(program, "u_mid");
+    const trebleLoc = gl.getUniformLocation(program, "u_treble");
     const trailLocs: WebGLUniformLocation[] = [];
     for (let i = 0; i < 8; i++) {
       trailLocs.push(gl.getUniformLocation(program, `u_trail[${i}]`)!);
     }
+    
+    // Store audio ref for render loop
+    let currentAudio = { bass: 0, mid: 0, treble: 0 };
 
     // Enable blending for soft particles
     gl.enable(gl.BLEND);
@@ -475,6 +491,9 @@ export default function ParticleCloud({
       gl.uniform2f(mouseLoc, mouseRef.current.x, mouseRef.current.y);
       gl.uniform2f(mouseVelLoc, mouseRef.current.vx, mouseRef.current.vy);
       gl.uniform1f(mouseInfluenceLoc, smoothInfluence);
+      gl.uniform1f(bassLoc, currentAudio.bass);
+      gl.uniform1f(midLoc, currentAudio.mid);
+      gl.uniform1f(trebleLoc, currentAudio.treble);
 
       // Pass trail data to shader
       for (let i = 0; i < 8; i++) {
@@ -497,6 +516,14 @@ export default function ParticleCloud({
 
       animationRef.current = requestAnimationFrame(render);
     };
+    
+    // Update audio values from external source
+    const updateAudio = (metrics: { bass: number; mid: number; treble: number }) => {
+      currentAudio = metrics;
+    };
+    
+    // Store update function on canvas for external access
+    (canvas as HTMLCanvasElement & { updateAudio?: typeof updateAudio }).updateAudio = updateAudio;
 
     render();
 
@@ -510,6 +537,16 @@ export default function ParticleCloud({
       gl.deleteShader(fShader);
     };
   }, [particleCount, theme]);
+
+  // Update audio metrics
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number }) => void };
+    if (canvasWithAudio.updateAudio) {
+      canvasWithAudio.updateAudio(audioMetrics);
+    }
+  }, [audioMetrics]);
 
   return (
     <canvas

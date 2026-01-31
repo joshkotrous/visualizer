@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useTheme } from "../providers/themeProvider";
+import { useAudio } from "../../contexts/AudioContext";
 
 const vertexShader = `
   attribute vec2 a_position;
@@ -17,6 +18,9 @@ const fragmentShader = `
   uniform vec2 u_resolution;
   uniform vec3 u_color;
   uniform float u_aspect;
+  uniform float u_bass;
+  uniform float u_mid;
+  uniform float u_treble;
   
   #define PI 3.14159265359
   #define TAU 6.28318530718
@@ -94,9 +98,12 @@ const fragmentShader = `
     // Single rotation matrix for all hexes - they rotate together as a group
     mat3 hexRot = rotateY(u_time * 0.2) * rotateX(u_time * 0.12);
     
-    float sphereRadius = 0.9;
-    float hexSize = 0.125;
-    float coreRadius = 0.35;
+    // Breathing effect based on bass
+    float breathe = 1.0 + u_bass * 0.3;
+    
+    float sphereRadius = 0.9 * breathe;
+    float hexSize = 0.125 * (1.0 + u_bass * 0.2);
+    float coreRadius = 0.35 * (1.0 + u_mid * 0.15);
     
     // Core rotation (slower than outer shell)
     mat3 coreRot = rotateY(u_time * 0.15) * rotateX(u_time * 0.1);
@@ -415,6 +422,7 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
   const animationRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const { theme } = useTheme();
+  const { audioMetrics } = useAudio();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -478,10 +486,16 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
     const resolutionLoc = gl.getUniformLocation(program, "u_resolution");
     const colorLoc = gl.getUniformLocation(program, "u_color");
     const aspectLoc = gl.getUniformLocation(program, "u_aspect");
+    const bassLoc = gl.getUniformLocation(program, "u_bass");
+    const midLoc = gl.getUniformLocation(program, "u_mid");
+    const trebleLoc = gl.getUniformLocation(program, "u_treble");
 
     const [r, g, b] = hexToRgb(theme.config.shader || theme.config.primary);
 
     startTimeRef.current = performance.now();
+    
+    // Store audio ref for render loop
+    let currentAudio = { bass: 0, mid: 0, treble: 0 };
 
     const render = () => {
       const time = (performance.now() - startTimeRef.current) / 1000;
@@ -496,11 +510,22 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
       gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
       gl.uniform3f(colorLoc, r, g, b);
       gl.uniform1f(aspectLoc, aspect);
+      gl.uniform1f(bassLoc, currentAudio.bass);
+      gl.uniform1f(midLoc, currentAudio.mid);
+      gl.uniform1f(trebleLoc, currentAudio.treble);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
 
       animationRef.current = requestAnimationFrame(render);
     };
+    
+    // Update audio values from external source
+    const updateAudio = (metrics: { bass: number; mid: number; treble: number }) => {
+      currentAudio = metrics;
+    };
+    
+    // Store update function on canvas for external access
+    (canvas as HTMLCanvasElement & { updateAudio?: typeof updateAudio }).updateAudio = updateAudio;
 
     render();
 
@@ -512,6 +537,16 @@ export default function DysonSphere({ className = "" }: DysonSphereProps) {
       gl.deleteShader(fShader);
     };
   }, [theme]);
+
+  // Update audio metrics
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const canvasWithAudio = canvas as HTMLCanvasElement & { updateAudio?: (metrics: { bass: number; mid: number; treble: number }) => void };
+    if (canvasWithAudio.updateAudio) {
+      canvasWithAudio.updateAudio(audioMetrics);
+    }
+  }, [audioMetrics]);
 
   return (
     <canvas

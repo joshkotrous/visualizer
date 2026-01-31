@@ -11,6 +11,13 @@ import React, {
 
 export type AudioSource = "microphone" | "system" | "both";
 
+interface AudioMetrics {
+  bass: number;      // 0-1, low frequencies (20-250Hz)
+  mid: number;       // 0-1, mid frequencies (250-2000Hz)
+  treble: number;    // 0-1, high frequencies (2000-20000Hz)
+  overall: number;   // 0-1, overall volume level
+}
+
 interface AudioContextState {
   isInitialized: boolean;
   isListening: boolean;
@@ -19,6 +26,7 @@ interface AudioContextState {
   frequencyData: Uint8Array | null;
   analyserNode: AnalyserNode | null;
   currentSource: AudioSource | null;
+  audioMetrics: AudioMetrics;
 }
 
 interface AudioContextActions {
@@ -40,6 +48,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const [currentSource, setCurrentSource] = useState<AudioSource | null>(null);
+  const [audioMetrics, setAudioMetrics] = useState<AudioMetrics>({
+    bass: 0,
+    mid: 0,
+    treble: 0,
+    overall: 0,
+  });
 
   const audioContextRef = useRef<globalThis.AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -84,6 +98,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     setWaveformData(null);
     setFrequencyData(null);
     setCurrentSource(null);
+    setAudioMetrics({ bass: 0, mid: 0, treble: 0, overall: 0 });
   }, []);
 
   const updateAudioData = useCallback(() => {
@@ -96,9 +111,49 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     // Get frequency data
     analyserRef.current.getByteFrequencyData(frequencyBufferRef.current);
 
+    // Calculate audio metrics from frequency data
+    // FFT_SIZE = 2048, so frequencyBinCount = 1024
+    // Each bin represents ~23.4Hz (48000Hz sample rate / 2048)
+    const freqData = frequencyBufferRef.current;
+    const binCount = freqData.length;
+    
+    // Bass: ~20-250Hz (bins 0-10)
+    let bassSum = 0;
+    const bassEnd = Math.floor(binCount * 0.01); // ~10 bins
+    for (let i = 0; i < bassEnd; i++) {
+      bassSum += freqData[i];
+    }
+    const bass = bassSum / (bassEnd * 255);
+    
+    // Mid: ~250-2000Hz (bins 10-85)
+    let midSum = 0;
+    const midStart = bassEnd;
+    const midEnd = Math.floor(binCount * 0.08);
+    for (let i = midStart; i < midEnd; i++) {
+      midSum += freqData[i];
+    }
+    const mid = midSum / ((midEnd - midStart) * 255);
+    
+    // Treble: ~2000-20000Hz (bins 85-850)
+    let trebleSum = 0;
+    const trebleStart = midEnd;
+    const trebleEnd = Math.floor(binCount * 0.8);
+    for (let i = trebleStart; i < trebleEnd; i++) {
+      trebleSum += freqData[i];
+    }
+    const treble = trebleSum / ((trebleEnd - trebleStart) * 255);
+    
+    // Overall: average of all frequencies
+    let overallSum = 0;
+    for (let i = 0; i < binCount; i++) {
+      overallSum += freqData[i];
+    }
+    const overall = overallSum / (binCount * 255);
+
     // Create new arrays for state updates to trigger re-renders
     setWaveformData(new Uint8Array(waveformBufferRef.current));
     setFrequencyData(new Uint8Array(frequencyBufferRef.current));
+    setAudioMetrics({ bass, mid, treble, overall });
 
     animationFrameRef.current = requestAnimationFrame(updateAudioData);
   }, []);
@@ -222,6 +277,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     frequencyData,
     analyserNode,
     currentSource,
+    audioMetrics,
     startAudio,
     stopAudio,
   };

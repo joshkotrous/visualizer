@@ -8,7 +8,9 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
       <ThemeProvider>
-        <AudioControls />
+        <div className="flex">
+          <AudioControls />
+        </div>
         <div className="grid grid-cols-3 gap-4  ">
           <DysonSphere />
           <ParticleCloud />
