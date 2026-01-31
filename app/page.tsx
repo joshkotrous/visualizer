@@ -45,17 +45,17 @@ function VisualizerGrid() {
       audioMetrics.mid * 0.4 +
       audioMetrics.bass * 0.2) *
     intensity;
-  const glowSize = 5 + glowIntensity * 30; // 5px base, up to 35px at peak
-  const glowOpacity = 0.2 + glowIntensity * 0.8; // 0.2 base, up to 1.0 at peak
+  const glowSize = 3 + glowIntensity * 15; // 3px base, up to 18px at peak
+  const glowOpacity = 0.15 + glowIntensity * 0.45; // 0.15 base, up to 0.6 at peak
+  const borderOpacity = 0.2 + glowIntensity * 0.6; // 0.2 base, up to 0.8 at peak
 
   // Use gap approach: grid background = border color, gap reveals it as borders
+  const borderRgb = hexToRgb(borderColor);
   const gridStyle = {
-    backgroundColor: borderColor,
+    backgroundColor: `rgba(${borderRgb}, ${borderOpacity})`,
     padding: "2px",
-    boxShadow: `0 0 ${glowSize}px rgba(${hexToRgb(
-      borderColor
-    )}, ${glowOpacity})`,
-    transition: "box-shadow 0.05s ease-out",
+    boxShadow: `0 0 ${glowSize}px rgba(${borderRgb}, ${glowOpacity})`,
+    transition: "box-shadow 0.05s ease-out, background-color 0.05s ease-out",
   };
   const gapStyle = { gap: "2px" };
 
@@ -70,11 +70,12 @@ function VisualizerGrid() {
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
           <DysonSphere />
         </div>
-        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
-          <ParticleCloud />
-        </div>
+
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
           <SineWaveGrid />
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <ParticleCloud />
         </div>
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
           <DNAHelix />
@@ -90,7 +91,10 @@ function VisualizerGrid() {
         {/* Neural Web cell with nested grid */}
         <div
           className="aspect-[7/5] overflow-hidden flex"
-          style={{ backgroundColor: borderColor, gap: "2px" }}
+          style={{
+            backgroundColor: `rgba(${borderRgb}, ${borderOpacity})`,
+            gap: "2px",
+          }}
         >
           <div className="w-1/2 h-full overflow-hidden bg-[#0a0a0a]">
             <NeuralWeb />
