@@ -196,19 +196,35 @@ const fragmentShader = `
           // Node size varies slightly with depth
           float nodeSize = 0.018 * (1.0 - depth * 0.08);
           
-          // Activation
+          // Activation - each node responds individually to audio
           float phase = float(layer) * 0.7 + float(ix) * 0.5 + float(iy) * 0.3;
-          float activation = 0.25;
+          float nodeHash = hash(float(layer * 100 + iy * 10 + ix));
           
+          // Base activation
+          float activation = 0.15;
+          
+          // Each node picks up different frequencies based on its hash
+          float bassResponse = smoothstep(0.0, 0.6, nodeHash) * bass * 1.5;
+          float midResponse = smoothstep(0.3, 0.9, nodeHash) * mid * 1.5;
+          float trebleResponse = smoothstep(0.5, 1.0, nodeHash) * treble * 1.5;
+          
+          // Layer-based primary response
           if (layer == 0 || layer == 1) {
-            activation += bass * 1.2;
-            activation *= 0.6 + sin(u_time * 2.0 + phase) * 0.4;
+            activation += bassResponse * 1.2 + midResponse * 0.4 + trebleResponse * 0.2;
           } else if (layer == 2) {
-            activation += mid * 1.2;
-            activation *= 0.6 + sin(u_time * 2.5 + phase) * 0.4;
+            activation += bassResponse * 0.4 + midResponse * 1.2 + trebleResponse * 0.4;
           } else {
-            activation += treble * 1.2;
-            activation *= 0.6 + sin(u_time * 3.0 + phase) * 0.4;
+            activation += bassResponse * 0.2 + midResponse * 0.4 + trebleResponse * 1.2;
+          }
+          
+          // Individual node pulsing at different rates
+          float pulseSpeed = 2.0 + nodeHash * 2.0;
+          activation *= 0.5 + sin(u_time * pulseSpeed + phase) * 0.5;
+          
+          // Random "firing" - some nodes light up more on beats
+          float fireThreshold = 0.7 - (bass + mid) * u_intensity * 0.4;
+          if (nodeHash > fireThreshold) {
+            activation += (bass + mid * 0.5) * u_intensity * 0.8;
           }
           
           // Node ring
