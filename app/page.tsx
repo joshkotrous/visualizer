@@ -68,35 +68,23 @@ function VisualizerGrid() {
         className="grid grid-cols-4 w-full max-w-[1120px]"
         style={{ ...gridStyle, ...gapStyle }}
       >
-        {/* Row 1 */}
-        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+        {/* Row 1-2 - DysonSphere spans 2 columns and 2 rows */}
+        <div className="col-span-2 row-span-2 overflow-hidden bg-[#0a0a0a]">
           <DysonSphere />
         </div>
 
+        {/* Row 1 right side */}
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
           <SineWaveGrid />
         </div>
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
           <ParticleCloud />
         </div>
-        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
-          <DNAHelix />
-        </div>
 
-        {/* Row 2 */}
-        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
-          <MagiCore />
-        </div>
-        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
-          <RadarSweep />
-        </div>
-        {/* Neural Web cell with nested grid */}
+        {/* Row 2 right side - Neural cluster */}
         <div
-          className="aspect-[7/5] overflow-hidden flex"
-          style={{
-            backgroundColor: `rgba(${borderRgb}, ${borderOpacity})`,
-            gap: "2px",
-          }}
+          className="col-span-2 aspect-[7/5] overflow-hidden flex"
+          style={{ gap: "2px" }}
         >
           <div className="w-1/2 h-full overflow-hidden bg-[#0a0a0a]">
             <NeuralWeb />
@@ -110,9 +98,22 @@ function VisualizerGrid() {
             </div>
           </div>
         </div>
+
+        {/* Row 2 */}
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <DNAHelix />
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <MagiCore />
+        </div>
+        <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
+          <RadarSweep />
+        </div>
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
           <AsciiAudioEffect />
         </div>
+
+        {/* Row 3 - Neural cluster spans full width */}
       </div>
     </div>
   );
