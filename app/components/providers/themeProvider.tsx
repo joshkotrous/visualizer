@@ -8,6 +8,22 @@ export type CustomThemeColors = {
   header: string;
 };
 
+type Theme = {
+  name: string;
+  label: string;
+  labelColor: string;
+  config: {
+    primary: string;
+    border: string;
+    background: string;
+    text: string;
+    glow: string;
+    shader?: string;
+    accent?: string;
+    header?: string;
+  };
+};
+
 type ThemeContextType = {
   theme: Theme | null;
   isLoading: boolean;
@@ -23,22 +39,6 @@ export const ThemeContext = createContext<ThemeContextType>({
   applyCustomTheme: () => {},
   customColors: null,
 });
-
-type Theme = {
-  name: string;
-  label: string;
-  labelColor: string;
-  config: {
-    primary: string;
-    border: string;
-    background: string;
-    text: string;
-    glow: string;
-    shader?: string; // Optional: separate color for WebGL shaders (defaults to primary if not set)
-    accent?: string; // Optional: accent color for vibe themes
-    header?: string; // Optional: color for h1, h2, h3 headers (defaults to primary if not set)
-  };
-};
 
 export const themes: Theme[] = [
   {
