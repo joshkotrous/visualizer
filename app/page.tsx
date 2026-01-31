@@ -20,6 +20,7 @@ import TFTOverlay from "./components/shaders/TFTOverlay";
 import { useAudio } from "./contexts/AudioContext";
 import { PerformanceProvider } from "./contexts/PerformanceContext";
 import { PerformanceControls } from "./components/PerformanceControls";
+import { WelcomeDialog } from "./components/WelcomeDialog";
 
 function hexToRgb(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -127,6 +128,7 @@ export default function Home() {
           <ColoredNoiseOverlay />
           {/* <MonochromeNoiseOverlay /> */}
           <TFTOverlay />
+          <WelcomeDialog />
           <div className="flex shrink-0 items-center">
             <AudioControls />
             <ThemeDropdown />

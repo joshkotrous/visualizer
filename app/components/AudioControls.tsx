@@ -27,13 +27,9 @@ export function AudioControls() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleStart = () => {
-    startAudio(selectedSource);
-    setIsOpen(false);
-  };
-
-  const handleSelectSource = (source: AudioSource) => {
+  const handleSelectAndStart = (source: AudioSource) => {
     setSelectedSource(source);
+    startAudio(source);
     setIsOpen(false);
   };
 
@@ -62,26 +58,13 @@ export function AudioControls() {
               {sourceOptions.map((option) => (
                 <button
                   key={option.value}
-                  onClick={() => handleSelectSource(option.value)}
-                  className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-800 ${
-                    selectedSource === option.value ? "text-white" : "text-zinc-400"
-                  }`}
+                  onClick={() => handleSelectAndStart(option.value)}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-zinc-300 transition-colors hover:bg-zinc-800 hover:text-white"
                 >
                   <SourceIcon source={option.value} />
                   {option.label}
-                  {selectedSource === option.value && (
-                    <span className="ml-auto text-zinc-500">●</span>
-                  )}
                 </button>
               ))}
-              <div className="my-1 border-t border-zinc-800" />
-              <button
-                onClick={handleStart}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-white transition-colors hover:bg-zinc-800"
-              >
-                <Play className="w-3.5 h-3.5" />
-                Start with {sourceOptions.find(o => o.value === selectedSource)?.label}
-              </button>
             </div>
           )}
         </div>
