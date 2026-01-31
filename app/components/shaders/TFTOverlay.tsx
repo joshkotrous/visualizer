@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useRef, useMemo, useEffect } from "react";
+import { useRef, useMemo, useEffect, useState } from "react";
 import { ShaderMaterial, Vector2, Vector3 } from "three";
 import { useTheme } from "../providers/themeProvider";
 import { usePerformance, getFrameDelay } from "../../contexts/PerformanceContext";
@@ -123,6 +123,11 @@ function TFTShader() {
 
 export default function TFTOverlay() {
   const { settings } = usePerformance();
+  const [dpr, setDpr] = useState(1);
+
+  useEffect(() => {
+    setDpr(Math.min(window.devicePixelRatio || 1, settings.pixelRatio));
+  }, [settings.pixelRatio]);
 
   return (
     <div
@@ -136,7 +141,7 @@ export default function TFTOverlay() {
       <Canvas
         orthographic
         camera={{ position: [0, 0, 1], zoom: 1 }}
-        dpr={Math.min(window.devicePixelRatio || 1, settings.pixelRatio)}
+        dpr={dpr}
         style={{
           background: "transparent",
           pointerEvents: "none",
