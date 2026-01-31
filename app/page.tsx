@@ -7,7 +7,7 @@ import { ThemeProvider, useTheme } from "./components/providers/themeProvider";
 import SineWaveGrid from "./components/shaders/SineWaveGrid";
 import { AsciiAudioEffect } from "./components/shaders/AsciiAudioEffect";
 import MagiCore from "./components/shaders/MagiCore";
-import RadarSweep from "./components/shaders/RadarSweep";
+import TransformerNet from "./components/shaders/TransformerNet";
 import NeuralWeb from "./components/shaders/NeuralWeb";
 import NeuralPulse from "./components/shaders/NeuralPulse";
 import NeuralStorm from "./components/shaders/NeuralStorm";
@@ -108,7 +108,7 @@ function VisualizerGrid() {
           <MagiCore />
         </div>
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
-          <RadarSweep />
+          <TransformerNet />
         </div>
         <div className="aspect-[7/5] overflow-hidden bg-[#0a0a0a]">
           <AsciiAudioEffect />
